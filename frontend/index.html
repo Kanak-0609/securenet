@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureNet — Network Intrusion Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E14;
+    --bg-panel: #10151D;
+    --bg-panel-alt: #161C26;
+    --bg-elevated: #1B222E;
+    --border: #212A36;
+    --border-soft: #191F29;
+    --text-primary: #EAEDF2;
+    --text-muted: #7E8CA0;
+    --text-faint: #4E5A6C;
+    --accent-critical: #FF6B5B;
+    --accent-critical-dim: rgba(255, 107, 91, 0.12);
+    --accent-warn: #F5B94D;
+    --accent-warn-dim: rgba(245, 185, 77, 0.12);
+    --accent-safe: #46D9B8;
+    --accent-safe-dim: rgba(70, 217, 184, 0.12);
+    --accent-primary: #5B8DEF;
+    --accent-primary-dim: rgba(91, 141, 239, 0.12);
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 28px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; }
+
+  .brand-mark {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent-primary), #3D6BD1);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-weight: 600; font-size: 14px;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .brand-text h1 {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .brand-text p {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-top: 1px;
+    letter-spacing: 0.3px;
+  }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: var(--bg-panel);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent-safe);
+    box-shadow: 0 0 0 0 rgba(70, 217, 184, 0.6);
+    animation: pulse-dot 2s infinite;
+  }
+  .status-dot.offline { background: var(--accent-critical); animation: none; }
+
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgba(70, 217, 184, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(70, 217, 184, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(70, 217, 184, 0); }
+  }
+
+  .pulse-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px 14px;
+    margin-bottom: 20px;
+  }
+
+  .pulse-label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .pulse-label span:first-child {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .pulse-label span:last-child {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  #pulseSvg { width: 100%; height: 64px; display: block; }
+  .pulse-line {
+    fill: none;
+    stroke: var(--accent-primary);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 4px rgba(91, 141, 239, 0.4));
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: draw-in 1.4s ease-out forwards;
+  }
+  @keyframes draw-in { to { stroke-dashoffset: 0; } }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .stat-card:hover { border-color: var(--border); transform: translateY(-1px); }
+
+  .stat-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .stat-card .value {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  .stat-card.critical .value { color: var(--accent-critical); }
+  .stat-card.warn .value { color: var(--accent-warn); }
+  .stat-card.safe .value { color: var(--accent-safe); }
+
+  .upload-panel {
+    background: var(--bg-panel);
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .upload-panel.dragover {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-dim);
+  }
+
+  .upload-text .t1 { font-family: var(--font-display); font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+  .upload-text .t2 { font-size: 12.5px; color: var(--text-muted); }
+
+  .btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:hover { opacity: 0.88; }
+  .btn-primary { background: var(--accent-primary); color: white; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-resolve {
+    background: var(--accent-safe-dim);
+    color: var(--accent-safe);
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid transparent;
+  }
+  .btn-resolve:disabled {
+    background: transparent;
+    color: var(--text-faint);
+    cursor: default;
+  }
+  #fileInput { display: none; }
+
+  .filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .filter-tab {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 13px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .filter-tab.active {
+    background: var(--accent-primary-dim);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  .table-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-faint);
+    font-weight: 500;
+    padding: 13px 16px;
+    background: var(--bg-panel-alt);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border-soft);
+    animation: row-in 0.3s ease both;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-panel-alt); }
+  @keyframes row-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+
+  td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
+
+  .sev-cell { display: flex; align-items: center; gap: 8px; }
+  .sev-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sev-dot.high { background: var(--accent-critical); }
+  .sev-dot.medium { background: var(--accent-warn); }
+  .sev-dot.low { background: var(--accent-safe); }
+  .sev-text { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: capitalize; }
+  .sev-text.high { color: var(--accent-critical); }
+  .sev-text.medium { color: var(--accent-warn); }
+  .sev-text.low { color: var(--accent-safe); }
+
+  .mono { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-primary); }
+  .muted { color: var(--text-muted); }
+
+  .conf-bar-wrap {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .conf-track {
+    width: 54px; height: 4px; background: var(--border);
+    border-radius: 4px; overflow: hidden;
+  }
+  .conf-fill { height: 100%; border-radius: 4px; }
+
+  .badge-resolved {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+  }
+  .empty-state .glyph {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .empty-state .t1 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .empty-state .t2 { font-size: 13px; color: var(--text-muted); }
+
+  @media (max-width: 760px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .upload-panel { flex-direction: column; align-items: flex-start; }
+    thead th:nth-child(4), td:nth-child(4) { display: none; }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">SN</div>
+      <div class="brand-text">
+        <h1>SecureNet</h1>
+        <p>NETWORK INTRUSION DETECTION</p>
+      </div>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Checking connection…</span>
+    </div>
+  </header>
+
+  <div class="pulse-panel">
+    <div class="pulse-label">
+      <span>Threat Confidence — Recent Activity</span>
+      <span id="pulseMeta">no data yet</span>
+    </div>
+    <svg id="pulseSvg" viewBox="0 0 1000 64" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Rows Analyzed</div>
+      <div class="value" id="statTotal">0</div>
+    </div>
+    <div class="stat-card critical">
+      <div class="label">Flagged Alerts</div>
+      <div class="value" id="statFlagged">0</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="label">High Severity</div>
+      <div class="value" id="statHigh">0</div>
+    </div>
+    <div class="stat-card safe">
+      <div class="label">Resolved</div>
+      <div class="value" id="statResolved">0</div>
+    </div>
+  </div>
+
+  <div class="upload-panel" id="uploadPanel">
+    <div class="upload-text">
+      <div class="t1">Upload a traffic log</div>
+      <div class="t2">NSL-KDD formatted CSV, no header row — drag a file here or browse</div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost" id="refreshBtn">Refresh</button>
+      <button class="btn btn-primary" id="browseBtn">Analyze traffic log</button>
+    </div>
+    <input type="file" id="fileInput" accept=".txt,.csv">
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="filter-tab active" data-filter="all">All</button>
+    <button class="filter-tab" data-filter="high">High</button>
+    <button class="filter-tab" data-filter="medium">Medium</button>
+    <button class="filter-tab" data-filter="low">Low</button>
+    <button class="filter-tab" data-filter="unresolved">Unresolved</button>
+  </div>
+
+  <div class="table-panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Protocol</th>
+          <th>Service</th>
+          <th>Flag</th>
+          <th>Src / Dst Bytes</th>
+          <th>Confidence</th>
+          <th>Detected</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="alertsBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="glyph">// —</div>
+      <div class="t1">No alerts to show</div>
+      <div class="t2">Upload a traffic log to start analyzing, or adjust your filter.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = 'http://127.0.0.1:5000';
+  let allAlerts = [];
+  let currentFilter = 'all';
+  let currentBatchId = null;
+  let viewMode = 'batch'; // 'batch' or 'all'
+
+  const sevColor = { high: '#FF6B5B', medium: '#F5B94D', low: '#46D9B8' };
+
+  async function checkHealth() {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    try {
+      const res = await fetch(`${API_BASE}/api/health`);
+      if (res.ok) {
+        dot.classList.remove('offline');
+        text.textContent = 'API connected';
+      } else throw new Error();
+    } catch {
+      dot.classList.add('offline');
+      text.textContent = 'API offline';
+    }
+  }
+
+  async function loadAlerts() {
+    try {
+      let url = `${API_BASE}/api/alerts`;
+      if (viewMode === 'batch' && currentBatchId) {
+        url += `?batch_id=${currentBatchId}`;
+      }
+      const res = await fetch(url);
+      allAlerts = await res.json();
+      allAlerts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      await renderStats();
+      renderPulse();
+      renderTable();
+      renderViewToggle();
+    } catch (e) {
+      console.error('Failed to load alerts', e);
+    }
+  }
+
+  function renderViewToggle() {
+    const meta = document.getElementById('pulseMeta');
+    if (!currentBatchId) return;
+    const baseLabel = meta.textContent;
+    const label = viewMode === 'batch' ? 'this upload' : 'all history';
+    meta.innerHTML = `${baseLabel} · <a href="#" id="toggleView" style="color:var(--accent-primary); text-decoration:underline; cursor:pointer;">viewing ${label}, switch</a>`;
+    document.getElementById('toggleView').addEventListener('click', (e) => {
+      e.preventDefault();
+      viewMode = viewMode === 'batch' ? 'all' : 'batch';
+      loadAlerts();
+    });
+  }
+
+  async function renderStats() {
+    document.getElementById('statFlagged').textContent = allAlerts.length;
+    document.getElementById('statHigh').textContent = allAlerts.filter(a => a.severity === 'high').length;
+    document.getElementById('statResolved').textContent = allAlerts.filter(a => a.resolved).length;
+
+    try {
+      let url = `${API_BASE}/api/stats`;
+      if (viewMode === 'batch' && currentBatchId) {
+        url += `?batch_id=${currentBatchId}`;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      document.getElementById('statTotal').textContent = data.total_rows_analyzed;
+    } catch {
+      document.getElementById('statTotal').textContent = '—';
+    }
+  }
+
+  function renderPulse() {
+    const svg = document.getElementById('pulseSvg');
+    const meta = document.getElementById('pulseMeta');
+    const recent = [...allAlerts].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-40);
+
+    if (recent.length === 0) {
+      svg.innerHTML = `<line x1="0" y1="32" x2="1000" y2="32" stroke="#212A36" stroke-width="1.5" stroke-dasharray="4 6"/>`;
+      meta.textContent = 'no data yet';
+      return;
+    }
+
+    meta.textContent = `${recent.length} most recent`;
+    const w = 1000, h = 64, pad = 6;
+    const step = recent.length > 1 ? (w / (recent.length - 1)) : w;
+    let points = recent.map((a, i) => {
+      const x = i * step;
+      const y = h - pad - (a.confidence * (h - pad * 2));
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    svg.innerHTML = `<polyline class="pulse-line" points="${points}" />`;
+  }
+
+  function renderTable() {
+    const body = document.getElementById('alertsBody');
+    const empty = document.getElementById('emptyState');
+
+    let filtered = allAlerts;
+    if (currentFilter === 'unresolved') filtered = allAlerts.filter(a => !a.resolved);
+    else if (currentFilter !== 'all') filtered = allAlerts.filter(a => a.severity === currentFilter);
+
+    if (filtered.length === 0) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    body.innerHTML = filtered.map((a, idx) => {
+      const time = new Date(a.timestamp);
+      const timeStr = isNaN(time) ? '—' : time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const confPct = Math.round(a.confidence * 100);
+      const color = sevColor[a.severity] || '#7E8CA0';
+
+      return `
+        <tr style="animation-delay:${Math.min(idx * 25, 300)}ms">
+          <td>
+            <div class="sev-cell">
+              <span class="sev-dot ${a.severity}"></span>
+              <span class="sev-text ${a.severity}">${a.severity}</span>
+            </div>
+          </td>
+          <td class="mono">${a.protocol}</td>
+          <td class="mono">${a.service}</td>
+          <td class="mono muted">${a.flag}</td>
+          <td class="mono muted">${a.src_bytes} / ${a.dst_bytes}</td>
+          <td>
+            <div class="conf-bar-wrap">
+              <div class="conf-track"><div class="conf-fill" style="width:${confPct}%; background:${color};"></div></div>
+              <span class="mono muted" style="font-size:11.5px;">${confPct}%</span>
+            </div>
+          </td>
+          <td class="mono muted">${timeStr}</td>
+          <td>
+            ${a.resolved
+              ? `<span class="badge-resolved">✓ resolved</span>`
+              : `<button class="btn btn-resolve" data-id="${a.id}">Resolve</button>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.btn-resolve').forEach(btn => {
+      btn.addEventListener('click', () => resolveAlert(btn.dataset.id));
+    });
+  }
+
+  async function resolveAlert(id) {
+    try {
+      await fetch(`${API_BASE}/api/alerts/${id}/resolve`, { method: 'POST' });
+      await loadAlerts();
+    } catch (e) {
+      console.error('Failed to resolve alert', e);
+    }
+  }
+
+  async function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('traffic_log', file);
+    const browseBtn = document.getElementById('browseBtn');
+    const originalText = browseBtn.textContent;
+    browseBtn.textContent = 'Analyzing…';
+    browseBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });
+      const data = await res.json();
+      currentBatchId = data.batch_id;
+      viewMode = 'batch';
+      await loadAlerts();
+    } catch (e) {
+      console.error('Upload failed', e);
+      alert('Upload failed. Check that the Flask server is running.');
+    } finally {
+      browseBtn.textContent = originalText;
+      browseBtn.disabled = false;
+    }
+  }
+
+  // Filters
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentFilter = tab.dataset.filter;
+      renderTable();
+    });
+  });
+
+  // Upload interactions
+  const fileInput = document.getElementById('fileInput');
+  const uploadPanel = document.getElementById('uploadPanel');
+  document.getElementById('browseBtn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) uploadFile(fileInput.files[0]); });
+  document.getElementById('refreshBtn').addEventListener('click', loadAlerts);
+
+  ['dragenter', 'dragover'].forEach(evt =>
+    uploadPanel.addEventListener(evt, e => { e.preventDefault(); uploadPanel.classList.add('dragover'); })
+  );
+  ['dragleave', 'drop'].forEach(evt =>
+    uploadPanel.addEventListener(evt, e => { e.preventDefault(); uploadPanel.classList.remove('dragover'); })
+  );
+  uploadPanel.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) uploadFile(file);
+  });
+
+  // Init
+  checkHealth();
+  loadAlerts();
+  setInterval(checkHealth, 15000);
+</script>
+
+</body>
+</html>
